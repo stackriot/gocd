@@ -36,25 +36,6 @@ trait WrapperTemplateFilters {
 
   abstract List<String> getJvmArgs()
 
-  // Work around Tanuki 3.7.2 App.sh.in regressions (revisit on next wrapper upgrade):
-  // - On platforms marked FALLBACK_32=false (macOS, Linux aarch64/ppcle/s390x) the script skips
-  //   the only block that detects the arch-suffixed delta-pack binaries, leaving no usable
-  //   wrapper. Detect unconditionally, using FALLBACK_32 only to skip the 32-bit license check
-  //   (always unnecessary for GoCD).
-  // - On Apple Silicon the script otherwise selects the x86_64 wrapper binary (Rosetta) for
-  //   non-launch commands, or for launch when the JVM is x86_64. Skip the JVM architecture
-  //   probing so the arm binary is always used.
-  private static final Map<String, String> TANUKI_3_7_2_WORKAROUNDS = [
-      'if [ "$BIN_BITS" != "32" -a "$FALLBACK_32" = "true" ] ; then':
-      'if [ "$BIN_BITS" != "32" ] ; then',
-
-      '    if tryDetectWrapperBinary "$BIN_ARCH" "$BIN_BITS" ; then':
-      '    if tryDetectWrapperBinary "$BIN_ARCH" "$BIN_BITS" && [ "$FALLBACK_32" = "true" ] ; then',
-
-      '    if tryDetectWrapperBinary "arm" "$DIST_BITS" || tryDetectWrapperBinary "x86" "$DIST_BITS" ; then':
-      '    if false ; then',
-  ]
-
   Closure<String> wrapperShTemplateFilter(InstallerLayout layout, Map<String, String> packageSpecificReplacements = [:]) {
     // App.sh resolves relative paths against its own bin/ directory, one level inside the
     // install dir, rather than against the working directory - so a relative layout expresses
@@ -68,7 +49,7 @@ trait WrapperTemplateFilters {
 
       'PIDDIR="."':
       "PIDDIR=\"${layout.workingDir}/run\"",
-    ] + TANUKI_3_7_2_WORKAROUNDS + packageSpecificReplacements
+    ] + packageSpecificReplacements
 
     return { String eachLine ->
       eachLine = eachLine
